@@ -428,7 +428,8 @@ class AnnoyingScheduler():
                 messages.append(f"[✓] {name}: Not required today.")
                 continue
 
-            r = subprocess.run([script["internal_script"], ] + script["args"], capture_output=True)
+            cmd = [script["internal_script"], ] + script["args"]
+            r = subprocess.run(cmd, capture_output=True)
             msg = r.stdout.decode('utf-8').strip()
 
             if r.returncode == 0:
@@ -438,6 +439,9 @@ class AnnoyingScheduler():
                 self.config["conditions"][name]["validated"] = False
                 check = "x"
                 msg = "This script failed with an unknown error. To purge it from the system 'run digital-carrot purge'"
+                logger.error(f"command '{' '.join(cmd)}' failed")
+                logger.error(r.stderr)
+                logger.error(r.stdout)
                 complete = False
             else:
                 complete = False
