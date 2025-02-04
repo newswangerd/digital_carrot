@@ -429,19 +429,28 @@ class AnnoyingScheduler():
                 continue
 
             cmd = [script["internal_script"], ] + script["args"]
-            r = subprocess.run(cmd, capture_output=True)
-            msg = r.stdout.decode('utf-8').strip()
+            try:
+                r = subprocess.run(cmd, capture_output=True)
+                returncode = r.returncode
+                stdout = r.stdout.decode('utf-8').strip()
+                stderr = r.stderr.decode('utf-8').strip()
+            except OSError:
+                returncode = 1
+                stdout = ""
+                stderr = "Error executing script. Did you add a shebang?"
 
-            if r.returncode == 0:
+            msg = stdout
+
+            if returncode == 0:
                 check = "✓"
                 self.config["conditions"][name]["validated"] = True
-            elif r.returncode == 1:
+            elif returncode == 1:
                 self.config["conditions"][name]["validated"] = False
                 check = "x"
                 msg = "This script failed with an unknown error. To purge it from the system 'run digital-carrot purge'"
                 logger.error(f"command '{' '.join(cmd)}' failed")
-                logger.error(r.stderr)
-                logger.error(r.stdout)
+                logger.error(stderr)
+                logger.error(stdout)
                 complete = False
             else:
                 complete = False

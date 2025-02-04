@@ -2,14 +2,12 @@
 - make the system more resiliant
     - verify files we expect ro read actually exist
 - add config validation
-- Check sudo in client
 
 # Backlog
 - run condition scripts as a non root user
     - Once I've done this, allow write access to comms_in.pipe
 - add some kind of unblock mechanism aside from password
 - use the system python for annoying scheduler
-- make password input use password field in python
 - add instructions to template
-- put stderr and stdout logs in working dir
 - clean config before writing to user dir
+- add a library of builtin integrations
