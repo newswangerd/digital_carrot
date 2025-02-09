@@ -4,6 +4,7 @@ huggingface.txt
 web_messages/
 dev/
 test_project/
+my_project/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

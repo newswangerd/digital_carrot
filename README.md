@@ -33,15 +33,14 @@ The `config.json` file looks like this:
         "example_condition": {
             "script": "sample_script.py",
             "args": ["arg1", "arg2"],
-            "require_on": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            "require_on": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+            "pause_condition": {
+                "pause_args": ["pause"],
+                "max_pause_days": 10
+            }
         }
     },
-    "disable_method": "password",
-    "pause_condition": {
-        "script": "sample_script.py",
-        "args": [],
-        "max_pause_days": 3
-    }
+    "disable_method": "password"
 }
 ```
 
@@ -75,13 +74,21 @@ Save this file to `check_steps.py` and then add the following to your conditions
         "complete_steps": {
             "script": "check_steps.py",
             "args": ["10000"],
-            "require_on": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            "require_on": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+            "pause_condition": {
+                "pause_args": ["20000"],
+                "max_pause_days": 10
+            }
         }
     }
 }
 ```
 
 With this configuration, the system will unblock once `check_steps.py` returns a success.
+
+Additionally, if you want to take a longer break you can run `digital-carrot pause complete_steps 4`.
+This will rquire that you hit 20000 steps to unlock (configured in `pause_args`), but will let
+you pause for up to 10 days.
 
 ### Starting the Blocker
 
@@ -119,7 +126,3 @@ The config file takes the following settings:
 - `conditions`: the conditions that need to be met to unblock access to your websites.
 - `disable_method`: your escape hatch for disabling the blocker complete. Right now
   only `password` is supported, but more will be coming.
-- `pause_condition`: This is optional. If you want to be able to take a longer break,
-  you can provide another script here. This will let you use the `digital-carrot pause <days>`
-  command to take a break. You can only activate this if you have already hit your
-  daily goals.

@@ -5,6 +5,7 @@ import json
 from getpass import getpass
 
 from digital_carrot import assets
+from digital_carrot.config import Config
 
 from digital_carrot.annoying_scheduler import (
     AnnoyingScheduler,
@@ -12,6 +13,7 @@ from digital_carrot.annoying_scheduler import (
     OUT_PIPE,
     hash
 )
+import dis
 
 def send_cmd(cmd):
     with open(IN_PIPE, "w") as pipe:
@@ -24,10 +26,6 @@ def send_cmd(cmd):
 def absify_the_config(cfg):
     for condition in cfg["conditions"]:
         cfg["conditions"][condition]["script"] = os.path.abspath(cfg["conditions"][condition]["script"])
-
-    if pause_con := cfg.get("pause_condition"):
-        pause_con["script"] = os.path.abspath(pause_con["script"])
-        cfg["pause_condition"] = pause_con
     return cfg
 
 def unblock(args):
@@ -46,7 +44,7 @@ def update_config(args):
 
 
 def pause(args):
-    print(send_cmd("pause:" + args.days[0]))
+    print(send_cmd("pause:" + args.days + ":" + args.condition))
 
 def init(args):
     files = {
@@ -56,6 +54,8 @@ def init(args):
     }
 
     for name, template in files.items():
+        if os.path.exists(name):
+            continue
         with open(name, "w") as f:
             f.write(template)
 
@@ -64,12 +64,9 @@ def purge(args):
 
 def start(args):
     if args.config:
-        with open(args.config, "r") as f:
-            cfg = json.loads(f.read())
+        cfg = Config.parse_file(args.config)
 
-        cfg = absify_the_config(cfg)
-
-        if cfg["disable_method"] == "password":
+        if cfg.disable_method == "password":
 
             while True:
                 pw = getpass("Enter a password: ")
@@ -78,14 +75,16 @@ def start(args):
                 else:
                     break
 
-            cfg["hashed_password"] = hash(pw)
+            sched_cfg = absify_the_config(cfg.dict(exclude_none=True))
+            sched_cfg["hashed_password"] = hash(pw)
         else:
             print("ya gotta use a password for now")
             exit()
-    else:
-        cfg = None
 
-    AnnoyingScheduler(initial_config=cfg).propagate()
+    else:
+        sched_cfg = None
+
+    AnnoyingScheduler(initial_config=sched_cfg).propagate()
 
 
 def disable(args):
@@ -146,7 +145,8 @@ def parse_pause(subparsers):
             'condition of your choosing on top of your daily goals.'
         )
     )
-    parser.add_argument('days', nargs=1, help='Number of days to pause.')
+    parser.add_argument('condition', help='Condition to pause.')
+    parser.add_argument('days',  help='Number of days to pause.')
     parser.set_defaults(func=pause)
 
 def main():

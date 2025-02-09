@@ -166,9 +166,6 @@ class AnnoyingScheduler():
 
         self.load_condition_scripts(raise_missing=True)
 
-        if pause_con := self.config.get("pause_condition"):
-            with open(pause_con["script"], "r") as f:
-                self.scripts["__pause_condition__"] = f.read()
 
     def load_condition_scripts(self, raise_missing=False):
         # Read the condition scripts into memory so that they can't be tampered with.
@@ -197,11 +194,7 @@ class AnnoyingScheduler():
             with open(script_path, "w") as f:
                 f.write(script)
                 subprocess.call(f"sudo chmod u+x {script_path}".split(" "))
-                if name == "__pause_condition__":
-                    self.config["pause_condition"]["internal_script"] = script_path
-                else:
-                    self.config["conditions"][name]["internal_script"] = script_path
-
+                self.config["conditions"][name]["internal_script"] = script_path
 
         with open(CONFIG_FILE, "w") as f:
             f.write(json.dumps(self.config, indent=4))
@@ -250,7 +243,10 @@ class AnnoyingScheduler():
         self.config["hosts_sha"] = file_hash(HOSTS_FILE)
 
     def allow_exit(self):
-        return os.path.exists(KILLSWITCH)
+        if self.config.get("enable_killswitch", True):
+            return os.path.exists(KILLSWITCH)
+        else:
+            logger.warn("Killswitch is disabled")
 
     # This gets run when the system detects that it has been killed. If we're allowing
     # the program to stop, it will clean itself up. Otherwise, it copies itself to a
@@ -319,8 +315,14 @@ class AnnoyingScheduler():
 
         return "Updated " + cfg_file
 
-    def pause(self, num_days):
-        if pause_con := self.config["pause_condition"]:
+    def pause(self, num_days, condition):
+        condition_cfg = self.config["conditions"].get(condition)
+
+        if not condition_cfg:
+            self.pipe_out(f"Condition {condition} does not exist.")
+            return
+
+        if pause_con := condition_cfg.get("pause_condition"):
             max_days = pause_con.get("max_pause_days", 3)
             if num_days > max_days:
                 self.pipe_out(f"You're not allowed to pause more than {max_days} days")
@@ -329,17 +331,17 @@ class AnnoyingScheduler():
             if not unblocked:
                 self.pipe_out("Please finish your goals before requesting a longer pause.\n" + msg)
                 return
-            r = subprocess.run([pause_con["internal_script"], ] + pause_con["args"], capture_output=True)
+            r = subprocess.run([condition_cfg["internal_script"], ] + pause_con["pause_args"], capture_output=True)
 
             if r.returncode == 0:
-                self.config["pause_until"] = from_now(days=num_days)
+                condition_cfg["pause_until"] = from_now(days=num_days)
+                self.dump_to_disk()
                 self.pipe_out("Pause successful: " + r.stdout.decode("utf-8"))
             else:
                 self.pipe_out("Pause failed: " + r.stdout.decode("utf-8"))
 
-
         else:
-            self.pipe_out("Pausing is not enabled.")
+            self.pipe_out(f"Pausing {condition} is not enabled.")
 
     def purge_failed(self):
         msgs = []
@@ -390,8 +392,9 @@ class AnnoyingScheduler():
                 cfg = data.split(":", maxsplit=1)[1]
                 self.pipe_out(self.update_from_cfg(cfg))
             elif data.startswith("pause"):
-                days = int(data.split(":", maxsplit=1)[1])
-                self.pause(days)
+                cmd = data.split(":")
+                days = int(cmd[1])
+                self.pause(days, cmd[2])
             elif data.startswith("purge"):
                 self.purge_failed()
             else:
@@ -427,6 +430,12 @@ class AnnoyingScheduler():
             if WEEKDAYS[datetime.datetime.today().weekday()] not in script["require_on"]:
                 messages.append(f"[✓] {name}: Not required today.")
                 continue
+
+            if pause := script.get("pause_until"):
+                dt = datetime.datetime.fromisoformat(pause)
+                if datetime.datetime.now() < dt:
+                    messages.append(f"[✓] {name}: Paused until {pause}.")
+                    continue
 
             cmd = [script["internal_script"], ] + script["args"]
             try:

@@ -8,15 +8,14 @@ JSON_CONFIG_TEMPLATE="""{
         "example_condition": {
             "script": "sample_script.py",
             "args": ["arg1", "arg2"],
-            "require_on": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            "require_on": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+            "pause_condition": {
+                "pause_args": ["pause"],
+                "max_pause_days": 10
+            }
         }
     },
     "disable_method": "password",
-    "pause_condition": {
-        "script": "sample_script.py",
-        "args": [],
-        "max_pause_days": 3
-    }
 }"""
 
 SAMPLE_SCRIPT=f"""#!{sys.executable}
